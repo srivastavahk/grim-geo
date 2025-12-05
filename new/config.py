@@ -35,4 +35,4 @@ class GRIMConfig:
 
     # Robot Specifics (Hello Robot Stretch 3)
     # Assumes gripper frame Z-axis is the approach direction [cite: 182]
-    GRIPPER_APPROACH_VECTOR = np.array([0, 0, 1])
+    GRIPPER_APPROACH_VECTOR = np.array([1, 0, 0])
