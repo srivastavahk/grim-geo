@@ -1,13 +1,16 @@
 import numpy as np
 import open3d as o3d
-from config import GRIMConfig
 from scipy.spatial.transform import Rotation
+
+from config import GRIMConfig
+
 
 class GeometricGraspSampler:
     """
     Fallback for AnyGrasp. Generates antipodal grasps based on geometry.
 
     """
+
     def sample_grasps(self, pcd, num_samples=50):
         """
         Simple antipodal sampling:
@@ -15,12 +18,16 @@ class GeometricGraspSampler:
         2. Shoot ray along normal.
         3. If it hits back surface with opposing normal, it's a candidate.
         """
-        pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
+        pcd.estimate_normals(
+            search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30)
+        )
         points = np.asarray(pcd.points)
         normals = np.asarray(pcd.normals)
 
         candidates = []
-        indices = np.random.choice(len(points), size=min(len(points), num_samples*10), replace=False)
+        indices = np.random.choice(
+            len(points), size=min(len(points), num_samples * 10), replace=False
+        )
 
         for i in indices:
             p1 = points[i]
@@ -31,18 +38,20 @@ class GeometricGraspSampler:
             # Z = normal (Approach), Y = binormal (Closing direction)
 
             # Construct Rotation matrix from Normal
-            z_axis = -n1 # Approach vector (into object)
+            z_axis = -n1  # Approach vector (into object)
             z_axis /= np.linalg.norm(z_axis)
 
             # Random tangent for gripper orientation
-            temp_vec = np.array([1, 0, 0]) if np.abs(z_axis[0]) < 0.9 else np.array([0, 1, 0])
+            temp_vec = (
+                np.array([1, 0, 0]) if np.abs(z_axis[0]) < 0.9 else np.array([0, 1, 0])
+            )
             y_axis = np.cross(z_axis, temp_vec)
             y_axis /= np.linalg.norm(y_axis)
 
             x_axis = np.cross(y_axis, z_axis)
 
             R = np.column_stack((x_axis, y_axis, z_axis))
-            t = p1 - (z_axis * 0.05) # Back off 5cm
+            t = p1 - (z_axis * 0.05)  # Back off 5cm
 
             T = np.eye(4)
             T[:3, :3] = R
@@ -53,6 +62,7 @@ class GeometricGraspSampler:
                 break
 
         return candidates
+
 
 class GraspScorer:
     def evaluate(self, memory_grasp_transformed, candidate_grasps):
@@ -84,7 +94,7 @@ class GraspScorer:
 
             # Term 2: Gaussian decay of position
             dist_sq = np.linalg.norm(p_A - p_target) ** 2
-            term2 = np.exp(-dist_sq / (2 * (GRIMConfig.SIGMA_POS ** 2)))
+            term2 = np.exp(-dist_sq / (2 * (GRIMConfig.SIGMA_POS**2)))
 
             S_task = term1 + term2
 
@@ -97,4 +107,4 @@ class GraspScorer:
 
         # Sort descending
         scored_grasps.sort(key=lambda x: x[0], reverse=True)
-        return scored_grasps[0] # Return best (Score, Pose)
+        return scored_grasps[0]  # Return best (Score, Pose)

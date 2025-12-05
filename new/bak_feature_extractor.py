@@ -16,18 +16,15 @@ class FeatureExtractor:
     def __init__(self):
         print("Loading DINOv2 and CLIP models (CPU)...")
         # Vision Model: DINOv2
-        # Added use_safetensors=True to bypass torch security check
         self.dino_processor = AutoImageProcessor.from_pretrained(GRIMConfig.DINO_MODEL)
-        self.dino_model = AutoModel.from_pretrained(
-            GRIMConfig.DINO_MODEL, use_safetensors=True
-        ).to(GRIMConfig.DEVICE)
+        self.dino_model = AutoModel.from_pretrained(GRIMConfig.DINO_MODEL).to(
+            GRIMConfig.DEVICE
+        )
 
         # Text Model: CLIP
-        # Added use_safetensors=True here as well
-        self.clip_model = CLIPModel.from_pretrained(
-            GRIMConfig.CLIP_MODEL, use_safetensors=True
-        ).to(GRIMConfig.DEVICE)
-
+        self.clip_model = CLIPModel.from_pretrained(GRIMConfig.CLIP_MODEL).to(
+            GRIMConfig.DEVICE
+        )
         self.clip_processor = CLIPProcessor.from_pretrained(GRIMConfig.CLIP_MODEL)
         self.clip_tokenizer = CLIPTokenizer.from_pretrained(GRIMConfig.CLIP_MODEL)
         print("Models loaded.")
@@ -35,6 +32,8 @@ class FeatureExtractor:
     def extract_task_embedding(self, task_description: str) -> torch.Tensor:
         """
         Encodes task text using CLIP.
+        References:
+            - Section III-B [cite: 143]
         """
         inputs = self.clip_tokenizer(
             [task_description], padding=True, return_tensors="pt"
@@ -49,6 +48,8 @@ class FeatureExtractor:
         Returns:
             features (torch.Tensor): (1, n_patches, embed_dim)
             spatial_shape (tuple): (h_patches, w_patches)
+        References:
+            - Section III-C [cite: 125, 439]
         """
         inputs = self.dino_processor(images=image, return_tensors="pt").to(
             GRIMConfig.DEVICE

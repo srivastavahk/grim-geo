@@ -1,27 +1,31 @@
-import rclpy
-from rclpy.node import Node
-import tf2_ros
 import numpy as np
-from geometry_msgs.msg import PoseStamped, TransformStamped
-from scipy.spatial.transform import Rotation
+import rclpy
 import tf2_geometry_msgs  # Essential for do_transform_pose
+import tf2_ros
+from geometry_msgs.msg import PoseStamped, TransformStamped
+from rclpy.node import Node
+from scipy.spatial.transform import Rotation
+
 
 class StretchGraspTransformer(Node):
     """
     ROS 2 Node to handle coordinate transformations for Hello Robot Stretch 3.
     Converts GRIM inference results (Camera Frame) -> Robot Base Frame.
     """
+
     def __init__(self):
-        super().__init__('grim_grasp_transformer')
+        super().__init__("grim_grasp_transformer")
 
         # 1. TF Buffer & Listener
         self.tf_buffer = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
 
         # 2. Visualizer Publisher (for RViz)
-        self.grasp_pub = self.create_publisher(PoseStamped, '/grim/target_grasp', 10)
+        self.grasp_pub = self.create_publisher(PoseStamped, "/grim/target_grasp", 10)
 
-        self.get_logger().info("Stretch Grasp Transformer Initialized. Waiting for TF...")
+        self.get_logger().info(
+            "Stretch Grasp Transformer Initialized. Waiting for TF..."
+        )
 
     def numpy_to_pose_stamped(self, matrix_4x4, frame_id):
         """
@@ -38,7 +42,7 @@ class StretchGraspTransformer(Node):
 
         # Rotation (Matrix -> Quaternion)
         r = Rotation.from_matrix(matrix_4x4[:3, :3])
-        quat = r.as_quat() # [x, y, z, w]
+        quat = r.as_quat()  # [x, y, z, w]
 
         pose_msg.pose.orientation.x = quat[0]
         pose_msg.pose.orientation.y = quat[1]
@@ -47,7 +51,9 @@ class StretchGraspTransformer(Node):
 
         return pose_msg
 
-    def transform_grasp_to_base(self, grasp_matrix, camera_frame="camera_color_optical_frame"):
+    def transform_grasp_to_base(
+        self, grasp_matrix, camera_frame="camera_color_optical_frame"
+    ):
         """
         Transforms the grasp from Camera Optical Frame to Base Link.
 
@@ -65,10 +71,10 @@ class StretchGraspTransformer(Node):
             # 2. Look up Transform (Base -> Camera)
             # timeout of 1.0 seconds
             transform = self.tf_buffer.lookup_transform(
-                'base_link',
+                "base_link",
                 camera_frame,
                 rclpy.time.Time(),
-                timeout=rclpy.duration.Duration(seconds=1.0)
+                timeout=rclpy.duration.Duration(seconds=1.0),
             )
 
             # 3. Apply Transform
@@ -77,7 +83,7 @@ class StretchGraspTransformer(Node):
             # Repackage into PoseStamped with correct header
             final_pose = PoseStamped()
             final_pose.header.stamp = self.get_clock().now().to_msg()
-            final_pose.header.frame_id = 'base_link'
+            final_pose.header.frame_id = "base_link"
             final_pose.pose = pose_base
 
             # 4. Publish for Visualization
@@ -92,6 +98,7 @@ class StretchGraspTransformer(Node):
         except Exception as e:
             self.get_logger().error(f"Transformation Failed: {e}")
             return None
+
 
 def execute_on_stretch(pose_stamped):
     """

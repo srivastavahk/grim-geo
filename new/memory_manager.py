@@ -1,15 +1,19 @@
 import numpy as np
 import torch
 from scipy.spatial.distance import cosine
+
 from config import GRIMConfig
 
+
 class MemoryItem:
-    def __init__(self, obj_id, pcd, dino_features, task_embedding, grasp_pose, task_name):
+    def __init__(
+        self, obj_id, pcd, dino_features, task_embedding, grasp_pose, task_name
+    ):
         self.obj_id = obj_id
-        self.pcd = pcd                     # Open3D PointCloud (P_MO)
-        self.dino_features = dino_features # Numpy (N, D) (F_MO)
-        self.task_embedding = task_embedding # Tensor (1, D)
-        self.grasp_pose = grasp_pose       # 4x4 Matrix (G_M)
+        self.pcd = pcd  # Open3D PointCloud (P_MO)
+        self.dino_features = dino_features  # Numpy (N, D) (F_MO)
+        self.task_embedding = task_embedding  # Tensor (1, D)
+        self.grasp_pose = grasp_pose  # 4x4 Matrix (G_M)
         self.task_name = task_name
 
     @property
@@ -17,9 +21,48 @@ class MemoryItem:
         # Average pooling of DINO features [cite: 166]
         return np.mean(self.dino_features, axis=0)
 
+
 class MemoryManager:
     def __init__(self):
         self.memory = []
+
+    def load_memory_bank(self, directory="memory_bank"):
+        """
+        Loads all .grim files from the directory.
+        """
+        import glob
+        import pickle
+
+        import open3d as o3d
+
+        files = glob.glob(f"{directory}/*.grim")
+        print(f"Found {len(files)} memory items in '{directory}'. Loading...")
+
+        for f_path in files:
+            try:
+                with open(f_path, "rb") as f:
+                    data = pickle.load(f)
+
+                # Reconstruct Open3D PointCloud
+                pcd = o3d.geometry.PointCloud()
+                pcd.points = o3d.utility.Vector3dVector(data["points"])
+                if "colors" in data:
+                    pcd.colors = o3d.utility.Vector3dVector(data["colors"])
+
+                # Create Item
+                item = MemoryItem(
+                    obj_id=data["obj_id"],
+                    pcd=pcd,
+                    dino_features=data["dino_features"],
+                    task_embedding=data["task_embedding"],
+                    grasp_pose=data["grasp_pose"],
+                    task_name=data["task_name"],
+                )
+                self.add_item(item)
+                print(f"  Loaded: {data['obj_id']} ({data['task_name']})")
+
+            except Exception as e:
+                print(f"  Failed to load {f_path}: {e}")
 
     def add_item(self, item: MemoryItem):
         self.memory.append(item)
@@ -42,7 +85,9 @@ class MemoryManager:
 
         for item in self.memory:
             # Object Visual Similarity
-            mem_global_norm = item.global_descriptor / np.linalg.norm(item.global_descriptor)
+            mem_global_norm = item.global_descriptor / np.linalg.norm(
+                item.global_descriptor
+            )
             sim_vis = np.dot(scene_global_norm, mem_global_norm)
 
             # Task Semantic Similarity
@@ -57,5 +102,7 @@ class MemoryManager:
                 best_score = joint_score
                 best_item = item
 
-        print(f"Retrieved Memory: {best_item.obj_id} (Task: {best_item.task_name}) | Score: {best_score:.4f}")
+        print(
+            f"Retrieved Memory: {best_item.obj_id} (Task: {best_item.task_name}) | Score: {best_score:.4f}"
+        )
         return best_item

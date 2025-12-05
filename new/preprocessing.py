@@ -2,8 +2,10 @@ import numpy as np
 import open3d as o3d
 import torch
 from PIL import Image
-from feature_extractor import FeatureExtractor
+
 from config import GRIMConfig
+from feature_extractor import FeatureExtractor
+
 
 def process_rgbd_scene(rgb_path, depth_path, intrinsics, extractor: FeatureExtractor):
     """
@@ -22,10 +24,10 @@ def process_rgbd_scene(rgb_path, depth_path, intrinsics, extractor: FeatureExtra
 
     # 2. Generate Geometry (XYZ)
     rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(
-        color_raw, depth_raw, convert_rgb_to_intensity=False)
+        color_raw, depth_raw, convert_rgb_to_intensity=False
+    )
 
-    pcd = o3d.geometry.PointCloud.create_from_rgbd_image(
-        rgbd_image, intrinsics)
+    pcd = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_image, intrinsics)
 
     # 3. Generate Features (DINO)
     # Extract dense features
@@ -34,7 +36,7 @@ def process_rgbd_scene(rgb_path, depth_path, intrinsics, extractor: FeatureExtra
     # Upsample to per-pixel
     full_features = extractor.interpolate_features_to_image(
         patch_tokens, spatial_shape, target_size
-    ) # Shape (H*W, D)
+    )  # Shape (H*W, D)
 
     # 4. Map Features to Valid Points
     # Open3D's create_from_rgbd_image organizes points, but filters invalid depth.
